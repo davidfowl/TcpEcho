@@ -22,79 +22,100 @@ namespace TcpEcho
             while (true)
             {
                 var socket = await listenSocket.AcceptAsync();
-                _ = AcceptAsync(socket);
+                _ = ProcessLinesAsync(socket);
             }
         }
 
-        private static async Task AcceptAsync(Socket socket)
+        private static async Task ProcessLinesAsync(Socket socket)
         {
             Console.WriteLine($"[{socket.RemoteEndPoint}]: connected");
 
             var pipe = new Pipe();
-            Task writing = ReadFromSocketAsync(pipe.Writer);
-            Task reading = ReadFromPipeAsync(pipe.Reader);
+            Task writing = FillPipeAsync(socket, pipe.Writer);
+            Task reading = ReadPipeAsync(socket, pipe.Reader);
 
-            async Task ReadFromSocketAsync(PipeWriter writer)
+            await Task.WhenAll(reading, writing);
+
+            Console.WriteLine($"[{socket.RemoteEndPoint}]: disconnected");
+        }
+
+        private static async Task FillPipeAsync(Socket socket, PipeWriter writer)
+        {
+            const int minimumBufferSize = 512;
+
+            while (true)
             {
-                const int minimumBufferSize = 512;
-
-                while (true)
+                try
                 {
-                    try
-                    {
-                        Memory<byte> memory = writer.GetMemory(minimumBufferSize);
-                        int read = await socket.ReceiveAsync(memory, SocketFlags.None);
-                        if (read == 0)
-                        {
-                            break;
-                        }
-                        writer.Advance(read);
-                    }
-                    catch
+                    // Request a minimum of 512 bytes from the PipeWriter
+                    Memory<byte> memory = writer.GetMemory(minimumBufferSize);
+
+                    int bytesRead = await socket.ReceiveAsync(memory, SocketFlags.None);
+                    if (bytesRead == 0)
                     {
                         break;
                     }
 
-                    FlushResult result = await writer.FlushAsync();
-
-                    if (result.IsCompleted)
-                    {
-                        break;
-                    }
+                    // Tell the PipeWriter how much was read
+                    writer.Advance(bytesRead);
                 }
-                writer.Complete();
+                catch
+                {
+                    break;
+                }
+
+                // Make the data available to the PipeReader
+                FlushResult result = await writer.FlushAsync();
+
+                if (result.IsCompleted)
+                {
+                    break;
+                }
             }
 
-            async Task ReadFromPipeAsync(PipeReader reader)
-            {
-                while (true)
-                {
-                    ReadResult result = await reader.ReadAsync();
+            // Signal to the reader that we're done writing
+            writer.Complete();
+        }
 
-                    ReadOnlySequence<byte> buffer = result.Buffer;
-                    SequencePosition? position = buffer.PositionOf((byte)'\n');
+        private static async Task ReadPipeAsync(Socket socket, PipeReader reader)
+        {
+            while (true)
+            {
+                ReadResult result = await reader.ReadAsync();
+
+                ReadOnlySequence<byte> buffer = result.Buffer;
+                SequencePosition? position = null;
+
+                do
+                {
+                    // Find the EOL
+                    position = buffer.PositionOf((byte)'\n');
 
                     if (position != null)
                     {
-                        ProcessLine(socket, buffer.Slice(0, position.Value));
-                        buffer = buffer.Slice(buffer.GetPosition(1, position.Value));
-                    }
+                        var line = buffer.Slice(0, position.Value);
+                        ProcessLine(socket, line);
 
-                    reader.AdvanceTo(buffer.Start);
+                        // This is equivalent to position + 1
+                        var next = buffer.GetPosition(1, position.Value);
 
-                    if (result.IsCompleted)
-                    {
-                        break;
+                        // Skip what we've already processed including \n
+                        buffer = buffer.Slice(next);
                     }
                 }
+                while (position != null);
 
-                reader.Complete();
+                // We sliced the buffer until no more data could be processed
+                // Tell the PipeReader how much we consumed and how much we left to process
+                reader.AdvanceTo(buffer.Start, buffer.End);
+
+                if (result.IsCompleted)
+                {
+                    break;
+                }
             }
 
-            await reading;
-            await writing;
-
-            Console.WriteLine($"[{socket.RemoteEndPoint}]: disconnected");
+            reader.Complete();
         }
 
         private static void ProcessLine(Socket socket, in ReadOnlySequence<byte> buffer)
