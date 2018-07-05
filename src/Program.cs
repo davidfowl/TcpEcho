@@ -31,10 +31,10 @@ namespace TcpEcho
             Console.WriteLine($"[{socket.RemoteEndPoint}]: connected");
 
             var pipe = new Pipe();
-            Task writing = ReadFromSocketAsync(socket, pipe.Writer);
-            Task reading = ReadFromPipeAsync(socket, pipe.Reader);
+            Task writing = ReadFromSocketAsync(pipe.Writer);
+            Task reading = ReadFromPipeAsync(pipe.Reader);
 
-            async Task ReadFromSocketAsync(Socket s, PipeWriter writer)
+            async Task ReadFromSocketAsync(PipeWriter writer)
             {
                 const int minimumBufferSize = 512;
 
@@ -57,7 +57,7 @@ namespace TcpEcho
                 writer.Complete();
             }
 
-            async Task ReadFromPipeAsync(Socket s, PipeReader reader)
+            async Task ReadFromPipeAsync(PipeReader reader)
             {
                 while (true)
                 {
