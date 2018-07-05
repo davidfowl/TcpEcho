@@ -68,7 +68,7 @@ namespace TcpEcho
 
                     if (position != null)
                     {
-                        ProcessLine(s, buffer.Slice(0, position.Value));
+                        ProcessLine(socket, buffer.Slice(0, position.Value));
                         buffer = buffer.Slice(buffer.GetPosition(1, position.Value));
                     }
 
