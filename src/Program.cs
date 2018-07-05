@@ -40,13 +40,21 @@ namespace TcpEcho
 
                 while (true)
                 {
-                    Memory<byte> memory = writer.GetMemory(minimumBufferSize);
-                    int read = await socket.ReceiveAsync(memory, SocketFlags.None);
-                    if (read == 0)
+                    try
+                    {
+                        Memory<byte> memory = writer.GetMemory(minimumBufferSize);
+                        int read = await socket.ReceiveAsync(memory, SocketFlags.None);
+                        if (read == 0)
+                        {
+                            break;
+                        }
+                        writer.Advance(read);
+                    }
+                    catch
                     {
                         break;
                     }
-                    writer.Advance(read);
+
                     FlushResult result = await writer.FlushAsync();
 
                     if (result.IsCompleted)
