@@ -9,6 +9,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 
+#if !NETCOREAPP2_1
+using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.Internal;
+#endif
+
 namespace TcpEcho
 {
     public class TcpEchoServer : BackgroundService
@@ -90,8 +94,11 @@ namespace TcpEcho
                 {
                     // Request a minimum of 512 bytes from the PipeWriter
                     Memory<byte> memory = writer.GetMemory(minimumBufferSize);
-
+#if NETCOREAPP2_1
                     int bytesRead = await socket.ReceiveAsync(memory, SocketFlags.None, stoppingToken);
+#else
+                    int bytesRead = await socket.ReceiveAsync(memory.GetArray(), SocketFlags.None);
+#endif
                     if (bytesRead == 0)
                     {
                         break;
@@ -174,7 +181,13 @@ namespace TcpEcho
             Console.Write($"[{socket.RemoteEndPoint}]: ");
             foreach (var segment in buffer)
             {
-                Console.Write(Encoding.UTF8.GetString(segment.Span));
+#if NETCOREAPP2_1
+                string s = Encoding.UTF8.GetString(segment.Span);
+#else
+                ArraySegment<byte> array = segment.GetArray();
+                string s = Encoding.UTF8.GetString(array.Array, array.Offset, array.Count);
+#endif
+                Console.Write(s);
             }
             Console.WriteLine();
         }
