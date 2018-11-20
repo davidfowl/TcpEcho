@@ -1,17 +1,20 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace TcpEcho
 {
     class Program
     {
+        private static bool _echo;
+
         static async Task Main(string[] args)
         {
+            _echo = args.FirstOrDefault() == "echo";
+
             var listenSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
             listenSocket.Bind(new IPEndPoint(IPAddress.Loopback, 8087));
 
@@ -44,8 +47,11 @@ namespace TcpEcho
 
         private static void ProcessLine(Socket socket, string s)
         {
-            Console.Write($"[{socket.RemoteEndPoint}]: ");
-            Console.WriteLine(s);
+            if (_echo)
+            {
+                Console.Write($"[{socket.RemoteEndPoint}]: ");
+                Console.WriteLine(s);
+            }
         }
     }
 }
