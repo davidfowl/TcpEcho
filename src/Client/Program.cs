@@ -42,7 +42,7 @@ namespace TcpEcho
                 }
                 stopwatch.Stop();
 
-                Console.WriteLine($"Elapsed {stopwatch.Elapsed.TotalSeconds:F} sec.");
+                Console.WriteLine($"Message size {count}, elapsed {stopwatch.Elapsed.TotalSeconds:F} sec, throughput {count * (1_000_000 / 1024) / stopwatch.Elapsed.TotalSeconds:F} KiB/sec");
             }
         }
     }
