@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers;
 using System.IO.Pipelines;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -11,8 +12,12 @@ namespace TcpEcho
 {
     class Program
     {
+        private static bool _echo;
+
         static async Task Main(string[] args)
         {
+            _echo = args.FirstOrDefault() == "echo";
+
             var listenSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
             listenSocket.Bind(new IPEndPoint(IPAddress.Loopback, 8087));
 
@@ -121,16 +126,19 @@ namespace TcpEcho
 
         private static void ProcessLine(Socket socket, in ReadOnlySequence<byte> buffer)
         {
-            Console.Write($"[{socket.RemoteEndPoint}]: ");
-            foreach (var segment in buffer)
+            if (_echo)
             {
+                Console.Write($"[{socket.RemoteEndPoint}]: ");
+                foreach (var segment in buffer)
+                {
 #if NETCOREAPP2_1
                 Console.Write(Encoding.UTF8.GetString(segment.Span));
 #else
-                Console.Write(Encoding.UTF8.GetString(segment));
+                    Console.Write(Encoding.UTF8.GetString(segment));
 #endif
+                }
+                Console.WriteLine();
             }
-            Console.WriteLine();
         }
     }
 
