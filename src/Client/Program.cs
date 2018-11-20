@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -11,7 +12,7 @@ namespace TcpEcho
     {
         static async Task Main(string[] args)
         {
-            var mode = args[0];
+            var messageSize = args.FirstOrDefault();
 
             var clientSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
 
@@ -19,7 +20,7 @@ namespace TcpEcho
 
             clientSocket.Connect(new IPEndPoint(IPAddress.Loopback, 8087));
 
-            if (mode == "terminal")
+            if (messageSize == null)
             {
                 var buffer = new byte[1];
                 while (true)
@@ -31,7 +32,7 @@ namespace TcpEcho
             }
             else
             {
-                var count = int.Parse(mode);
+                var count = int.Parse(messageSize);
                 var buffer = Encoding.ASCII.GetBytes(new string('a', count) + Environment.NewLine);
                 var stopwatch = new Stopwatch();
                 stopwatch.Start();
