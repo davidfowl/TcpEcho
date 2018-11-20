@@ -15,7 +15,8 @@ namespace TcpEcho
             var messageSize = args.FirstOrDefault();
 
             var clientSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-
+            clientSocket.SendBufferSize = 0;
+            clientSocket.NoDelay = false;
             Console.WriteLine("Connecting to port 8087");
 
             clientSocket.Connect(new IPEndPoint(IPAddress.Loopback, 8087));
@@ -25,9 +26,13 @@ namespace TcpEcho
                 var buffer = new byte[1];
                 while (true)
                 {
-
-                    buffer[0] = (byte)Console.Read();
-                    await clientSocket.SendAsync(new ArraySegment<byte>(buffer, 0, 1), SocketFlags.None);
+                    var c = Console.ReadKey().KeyChar;
+                    buffer[0] = (byte)c;
+                    if (c == '\r')
+                    {
+                        Console.WriteLine();
+                    }
+                    var r = await clientSocket.SendAsync(new ArraySegment<byte>(buffer, 0, 1), SocketFlags.None);
                 }
             }
             else

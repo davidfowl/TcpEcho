@@ -16,7 +16,7 @@ namespace TcpEcho
 
         static async Task Main(string[] args)
         {
-            _echo = args.FirstOrDefault() == "echo";
+            _echo = args.FirstOrDefault() != "noecho";
 
             var listenSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
             listenSocket.Bind(new IPEndPoint(IPAddress.Loopback, 8087));
@@ -36,7 +36,7 @@ namespace TcpEcho
         {
             Console.WriteLine($"[{socket.RemoteEndPoint}]: connected");
 
-            var pipe = new Pipe();
+            var pipe = new Pipe(new PipeOptions(minimumSegmentSize: 16, pauseWriterThreshold: 17, resumeWriterThreshold: 17));
             Task writing = FillPipeAsync(socket, pipe.Writer);
             Task reading = ReadPipeAsync(socket, pipe.Reader);
 
@@ -47,14 +47,12 @@ namespace TcpEcho
 
         private static async Task FillPipeAsync(Socket socket, PipeWriter writer)
         {
-            const int minimumBufferSize = 512;
-
             while (true)
             {
                 try
                 {
                     // Request a minimum of 512 bytes from the PipeWriter
-                    Memory<byte> memory = writer.GetMemory(minimumBufferSize);
+                    Memory<byte> memory = writer.GetMemory();
 
                     int bytesRead = await socket.ReceiveAsync(memory, SocketFlags.None);
                     if (bytesRead == 0)
@@ -95,7 +93,7 @@ namespace TcpEcho
                 do
                 {
                     // Find the EOL
-                    position = buffer.PositionOf((byte)'\n');
+                    position = buffer.PositionOf((byte)'\r');
 
                     if (position != null)
                     {
@@ -131,46 +129,10 @@ namespace TcpEcho
                 Console.Write($"[{socket.RemoteEndPoint}]: ");
                 foreach (var segment in buffer)
                 {
-#if NETCOREAPP2_1
-                Console.Write(Encoding.UTF8.GetString(segment.Span));
-#else
-                    Console.Write(Encoding.UTF8.GetString(segment));
-#endif
+                    Console.Write(Encoding.UTF8.GetString(segment.Span));
                 }
                 Console.WriteLine();
             }
         }
     }
-
-#if NET461
-    internal static class Extensions
-    {
-        public static Task<int> ReceiveAsync(this Socket socket, Memory<byte> memory, SocketFlags socketFlags)
-        {
-            var arraySegment = GetArray(memory);
-            return SocketTaskExtensions.ReceiveAsync(socket, arraySegment, socketFlags);
-        }
-
-        public static string GetString(this Encoding encoding, ReadOnlyMemory<byte> memory)
-        {
-            var arraySegment = GetArray(memory);
-            return encoding.GetString(arraySegment.Array, arraySegment.Offset, arraySegment.Count);
-        }
-
-        private static ArraySegment<byte> GetArray(Memory<byte> memory)
-        {
-            return GetArray((ReadOnlyMemory<byte>)memory);
-        }
-
-        private static ArraySegment<byte> GetArray(ReadOnlyMemory<byte> memory)
-        {
-            if (!MemoryMarshal.TryGetArray(memory, out var result))
-            {
-                throw new InvalidOperationException("Buffer backed by array was expected");
-            }
-
-            return result;
-        }
-    }
-#endif
 }

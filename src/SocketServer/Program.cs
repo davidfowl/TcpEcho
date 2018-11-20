@@ -13,7 +13,7 @@ namespace TcpEcho
 
         static async Task Main(string[] args)
         {
-            _echo = args.FirstOrDefault() == "echo";
+            _echo = args.FirstOrDefault() != "noecho";
 
             var listenSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
             listenSocket.Bind(new IPEndPoint(IPAddress.Loopback, 8087));
