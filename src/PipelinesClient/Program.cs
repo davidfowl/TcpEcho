@@ -12,10 +12,10 @@ namespace TcpEcho {
 
         static async Task Main(string[] args)
         {
-            if (args.Length < 2)
+            if (args.Length < 3)
             {
-                Console.Error.WriteLine("Provide an endpoint and a port. E.g.: "
-                    + "client.exe some.endpoint.com 99999");
+                Console.Error.WriteLine("Provide an endpoint, a port and something to send. E.g.: "
+                    + "client.exe some.endpoint.com 99999 something_to_send");
                 return;
             }
 
@@ -23,7 +23,7 @@ namespace TcpEcho {
             {
                 await clientSocket.ConnectAsync(args[0], int.Parse(args[1]));
 
-                byte[] bytesToSend = UTF8Encoding.UTF8.GetBytes(json + Environment.NewLine);
+                byte[] bytesToSend = UTF8Encoding.UTF8.GetBytes(args[2] + Environment.NewLine);
                 clientSocket.Send(bytesToSend);
 
                 var pipe = new Pipe();
