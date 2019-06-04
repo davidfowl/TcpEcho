@@ -12,16 +12,9 @@ namespace TcpEcho {
 
         static async Task Main(string[] args)
         {
-            if (args.Length < 3)
-            {
-                Console.Error.WriteLine("Provide an endpoint, a port and something to send. E.g.: "
-                    + "client.exe some.endpoint.com 99999 something_to_send");
-                return;
-            }
-
             using (Socket clientSocket = new Socket(SocketType.Stream, ProtocolType.Tcp))
             {
-                await clientSocket.ConnectAsync(args[0], int.Parse(args[1]));
+                await clientSocket.Connect(new IPEndPoint(IPAddress.Loopback, 8087));
 
                 byte[] bytesToSend = UTF8Encoding.UTF8.GetBytes(args[2] + Environment.NewLine);
                 clientSocket.Send(bytesToSend);
